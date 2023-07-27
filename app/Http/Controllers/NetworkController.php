@@ -14,7 +14,10 @@ class NetworkController extends Controller
     {
         $user_id = Auth::id();
 
-        $getSentRequest = FriendRequest::where('request_from_id', $user_id)->pluck('request_to_id');
+        $getSentRequest = FriendRequest::where([
+            ['request_from_id', $user_id],
+            ['status', '=', 0]
+        ])->pluck('request_to_id');
         $getReceivedRequest = FriendRequest::where([
             ['request_to_id', '=', $user_id],
             ['status', '=', 0]
@@ -59,7 +62,6 @@ class NetworkController extends Controller
     public function getRequests($mode, $limit = 10)
     {
         $user_id = Auth::id();
-
         if ($mode == 'sent') {
             $users = DB::table('friend_requests as fr')
             ->leftJoin('users as u', 'u.id', '=', 'fr.request_to_id')
@@ -68,7 +70,7 @@ class NetworkController extends Controller
                 ['fr.status', '=', 0],
             ])
             ->select('fr.*', 'u.name', 'u.email')
-            ->take($limit)
+            // ->take($limit)
             ->get();
         } else {
             $users = DB::table('friend_requests as fr')
@@ -78,33 +80,55 @@ class NetworkController extends Controller
                 ['fr.status', '=', 0],
             ])
             ->select('fr.*', 'u.name', 'u.email')
-            ->take($limit)
+            // ->take($limit)
             ->get();
         }
 
         return response()->json( array('success' => true, 'user_id' => $user_id, 'users'=> $users) );
     }
 
-    public function getConnections($limit = 10)
+    public function getConnections($skipCounter, $takeAmount)
     {
         $user_id = Auth::id();
 
-        $connectedUsers = DB::select("
-            SELECT u.id AS user_id, u.name AS user_name, u.email AS user_email COUNT(DISTINCT fr1.request_to_id) as mutual_connections
-            FROM users u
-            INNER JOIN friend_requests fr ON (u.id = fr.request_from_id AND fr.status = '1' AND fr.request_to_id = :userId)
-            LEFT JOIN friend_requests fr1 ON (u.id = fr1.request_from_id AND fr1.status = '1')
-            WHERE u.id != :userId
-            GROUP BY u.id
-        ", ['userId' => $user_id]);
-// dd($connectedUsers);
+        $connectedUsers = User::select('users.id', 'users.name', 'users.email', 'users.password', 'users.created_at')
+            ->join('friend_requests as fr', function ($join) use ($user_id) {
+                $join->on('users.id', '=', 'fr.request_from_id')
+                    ->where('fr.status', '1')
+                    ->where('fr.request_to_id', '=', $user_id);
+            })
+            ->leftJoin('friend_requests as fr1', function ($join) {
+                $join->on('users.id', '=', 'fr1.request_from_id')
+                    ->where('fr1.status', '1');
+            })
+            ->where('users.id', '!=', $user_id)
+            ->groupBy('users.id', 'users.name', 'users.email', 'users.password', 'users.created_at')
+            ->selectRaw('COUNT(DISTINCT fr1.request_to_id) as common_connections_count')
+            // ->skip($skipCounter)
+            // ->take($takeAmount)
+            ->get();
+
         return response()->json( array('success' => true, 'user_id' => $user_id, 'users'=> $connectedUsers) );
     }
 
-    public function deleteRequests($connection_id)
+    public function deleteRequests($mode, $connection_id)
     {
-        FriendRequest::find($connection_id)->delete();
+        if ($mode == "connection") {
+            FriendRequest::where([
+                ['request_from_id', '=', Auth::id()],
+                ['request_to_id', '=', $connection_id],
+                ['status', '=', 1],
+            ])
+            ->orWhere([
+                ['request_from_id', '=', $connection_id],
+                ['request_to_id', '=', Auth::id()],
+                ['status', '=', 1],
+            ])
+            ->delete();
+        } else {
+            FriendRequest::find($connection_id)->delete();
+        }
 
-        return response()->json( array('success' => true));
+        return response()->json( array('success' => true, 'mode' => $mode));
     }
 }

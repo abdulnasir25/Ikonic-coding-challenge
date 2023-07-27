@@ -20,10 +20,10 @@ Route::get('/', function () {
 
 
 Route::get('/users/{skipCounter}/{takeAmount}', [NetworkController::class, 'loadSuggestions']);
-Route::post('/users/send-request/{id}', [NetworkController::class, 'sendRequest']);
-Route::get('/users/get-requests/{mode}', [NetworkController::class, 'getRequests']);
-Route::delete('/users/delete/{id}', [NetworkController::class, 'deleteRequests']);
-Route::post('/users/accept-request/{id}', [NetworkController::class, 'acceptRequest']);
-Route::get('/users/connections', [NetworkController::class, 'getConnections']);
+Route::post('/send-request/{id}', [NetworkController::class, 'sendRequest']);
+Route::get('/get-requests/{mode}', [NetworkController::class, 'getRequests']);
+Route::delete('/delete/{mode}/{id}', [NetworkController::class, 'deleteRequests']);
+Route::post('/accept-request/{id}', [NetworkController::class, 'acceptRequest']);
+Route::get('/connections/{skipCounter}/{takeAmount}', [NetworkController::class, 'getConnections']);
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');

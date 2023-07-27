@@ -47,9 +47,8 @@ class User extends Authenticatable
         return $this->hasMany(FriendRequest::class,'request_to_id','id');
     }
 
-    public function mutualFriends()
+    public function friendRequests()
     {
-        return $this->belongsToMany(User::class, 'friend_requests', 'request_from_id', 'request_to_id')
-            ->where('status', 1);
+        return $this->hasMany(FriendRequest::class, 'request_from_id');
     }
 }
